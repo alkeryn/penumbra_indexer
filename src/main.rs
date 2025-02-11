@@ -3,6 +3,7 @@ use clap::Parser;
 #[derive(Parser)]
 struct Args {
     #[arg(short, default_value = "https://grpc.penumbra.silentvalidator.com")]
+    /// what grpc node to use
     node_addres: String
 }
 #[tokio::main]

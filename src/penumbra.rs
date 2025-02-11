@@ -1,3 +1,4 @@
+use crate::errors::*;
 use penumbra::util::tendermint_proxy::v1::{
     GetStatusRequest,
     GetBlockByHeightRequest,
@@ -29,9 +30,9 @@ impl Tjs for GetBlockByHeightResponse {
 pub struct Penumbra {
     tendermint_client : TendermintProxyServiceClient<tonic::transport::Channel>
 }
-type BoxRes<T> = Result<T, Box<dyn std::error::Error>>;
+
 impl Penumbra {
-    pub async fn new(node: &str) -> BoxRes<Self> {
+    pub async fn new(node: &str) -> Result<Self, tonic::transport::Error> {
         let client = TendermintProxyServiceClient::connect(node.to_owned()).await?;
         Ok(
             Self {
@@ -39,14 +40,14 @@ impl Penumbra {
             }
         )
     }
-    pub async fn get_penumbra_lattest_block_height(&self) -> BoxRes<Option<u64>> {
+    pub async fn get_penumbra_lattest_block_height(&self) -> Result<Option<u64>, tonic::Status> {
         let mut client = self.tendermint_client.clone();
         let r = client.get_status(GetStatusRequest{})
             .await?.into_inner()
             .sync_info.map(|e| e.latest_block_height);
         Ok(r)
     }
-    pub async fn get_block_n(&self, n: i64) -> BoxRes<GetBlockByHeightResponse> {
+    pub async fn get_block_n(&self, n: i64) -> Result<GetBlockByHeightResponse, tonic::Status> {
         let mut client = self.tendermint_client.clone();
         let e = client.get_block_by_height(GetBlockByHeightRequest {
             height: n

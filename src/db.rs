@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use crate::errors::BoxRes;
 
 #[allow(unused)]
 pub struct Block {
@@ -7,9 +8,9 @@ pub struct Block {
 }
 #[async_trait]
 pub trait Db {
-    async fn get_last_block() -> usize;
-    async fn store_new_block(&self, block: Block);
-    async fn get_block(&self, nth: usize);
+    async fn get_last_block() -> BoxRes<usize>;
+    async fn store_new_block(&self, block: Block) -> BoxRes<()>;
+    async fn get_block(&self, nth: usize) -> BoxRes<Block>;
 }
 
 

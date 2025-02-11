@@ -18,3 +18,4 @@ prost-types = "0.13.4"
 tonic-build = "0.11.0"
 walkdir = "2.4.0"
 prost-reflect = { version = "0.14.6", features = ["serde"] }
+clap = { version = "4.5.28", features = ["derive"] }

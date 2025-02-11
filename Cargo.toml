@@ -1,8 +1,8 @@
 [package]
-name = "tech_test"
+name = "penumbra_indexer"
 version = "0.1.0"
 edition = "2021"
-default-run = "tech_test"
+default-run = "penumbra_indexer"
 
 [dependencies]
 async-trait = "0.1.86"

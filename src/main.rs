@@ -1,4 +1,4 @@
-use tech_test::penumbra::*;
+use penumbra_indexer::penumbra::*;
 use clap::Parser;
 #[derive(Parser)]
 struct Args {

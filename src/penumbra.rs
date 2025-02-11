@@ -10,16 +10,23 @@ use penumbra::Message;
 pub trait Tjs {
     fn to_json(self) -> BoxRes<serde_json::Value>;
 }
-fn get_descriptor_pool() -> BoxRes<prost_reflect::DescriptorPool> {
-    let pool = prost_reflect::DescriptorPool::decode(include_bytes!("../descriptor.bin").as_slice())?;
-    Ok(pool)
+
+static DESCRIPTOR_POOL : std::sync::OnceLock<prost_reflect::DescriptorPool> = std::sync::OnceLock::new();
+fn get_descriptor_pool() -> prost_reflect::DescriptorPool {
+    let pool = DESCRIPTOR_POOL.get_or_init(|| {
+        prost_reflect::DescriptorPool::decode(
+            include_bytes!("../descriptor.bin").as_slice()
+            ).expect("couldn't load descriptor")
+    }).clone();
+    pool
 }
+
 
 impl Tjs for GetBlockByHeightResponse {
     fn to_json(self) -> BoxRes<serde_json::Value> {
         let v = self.encode_to_vec();
-        let pool = get_descriptor_pool()?;
-        let des = pool.get_message_by_name("penumbra.util.tendermint_proxy.v1.GetBlockByHeightResponse").expect("couldn't get descriptor");
+        let pool = get_descriptor_pool();
+        let des = pool.get_message_by_name("penumbra.util.tendermint_proxy.v1.GetBlockByHeightResponse").expect("couldn't get descriptorpool");
 
         let e = prost_reflect::DynamicMessage::decode(des, v.as_slice())?;
         let json = serde_json::to_value(e)?;

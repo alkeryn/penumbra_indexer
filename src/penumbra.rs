@@ -62,3 +62,23 @@ impl Penumbra {
         Ok(e)
     }
 }
+
+// fetch_delta(range)
+pub struct PenumbraIndexer {
+    pen: Penumbra,
+    current_block: std::sync::atomic::AtomicUsize,
+    db: Box<dyn crate::db::Db>
+}
+
+impl PenumbraIndexer {
+    async fn new(node: &str, db: Box<dyn crate::db::Db>) -> BoxRes<Self> {
+        let current_block = std::sync::atomic::AtomicUsize::new(0); // TODO get from db
+        Ok(
+            Self {
+                pen: Penumbra::new(node).await?,
+                current_block,
+                db
+            }
+        )
+    }
+}

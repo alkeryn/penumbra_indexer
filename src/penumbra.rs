@@ -63,7 +63,7 @@ impl Penumbra {
     }
 }
 
-// TODO add timeouts
+// TODO add timeouts and retry
 async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::Value> {
     pen.get_block_n(n as i64).await?.to_json()
 }
@@ -71,7 +71,7 @@ async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::V
 #[derive(Debug)]
 pub struct BlockResult {
     nth: usize,
-    r: IndexerResult<serde_json::Value>
+    r: IndexerResult<crate::db::Block>
 }
 
 // fetch_delta(range)
@@ -108,10 +108,11 @@ impl PenumbraIndexer {
         self.fetch_stream(stream).await
     }
 
-    pub async fn fetch_blocks(&self, blocks: Vec<usize>) -> Vec<BlockResult> {
-        let stream = futures::stream::iter(blocks);
-        // TODO query db for those blocks
-        self.fetch_stream(stream).await
+    pub async fn fetch_blocks_db(&self, blocks: Vec<usize>) -> IndexerResult<Vec<crate::db::Block>> {
+        let success_blocks = self.db.get_blocks(&blocks).await?;
+        let missing_blocks = crate::db::find_missing_blocks(&success_blocks, &blocks);
+        // TODO fetch the missing blocks
+        Ok(success_blocks)
     }
 
     pub async fn fetch_stream(&self, stream: impl futures::Stream<Item = usize> + Send + 'static) -> Vec<BlockResult> {
@@ -131,7 +132,10 @@ impl PenumbraIndexer {
                     }
                     tx.send(BlockResult {
                         nth: n,
-                        r: b
+                        r: b.map(|b| crate::db::Block {
+                            nth: n,
+                            data: b
+                        })
                     });
                 }
             }).await;
@@ -147,12 +151,9 @@ impl PenumbraIndexer {
         if current_height > *current_block {
             let range = *current_block+1..current_height+1;
             let new_blocks = self.fetch_delta(range).await;
-            let success_blocks : Vec<_> = new_blocks.iter().filter_map(|b| {
-                match &b.r {
-                    Ok(data) => Some(crate::db::Block {
-                        nth: b.nth,
-                        data: data.clone()
-                    }),
+            let success_blocks : Vec<_> = new_blocks.into_iter().filter_map(|b| {
+                match b.r {
+                    Ok(data) => Some(data),
                     Err(_) => {
                         // TODO handle failure
                         None

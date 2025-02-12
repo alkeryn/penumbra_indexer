@@ -21,7 +21,6 @@ prost-reflect = { version = "0.14.6", features = ["serde"] }
 clap = { version = "4.5.28", features = ["derive"] }
 futures = "0.3.31"
 sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio"] }
-tokio-stream = "0.1.17"
 log = "0.4.25"
 env_logger = "0.11.6"
 axum = "0.8.1"

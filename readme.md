@@ -37,7 +37,7 @@ around `Penumbra` and a `Box<dyn Db>`, meaning it'll use `Penumbra` to get oncha
 trait to save and query the data to the database, it could be anything, even ram.
 
 the indexer has a `update_task` function that basically fetch the latest block height, download all the missing blocks from the latest synced
-and save them to database.
+and save them to database in chunks of up to 50 (since it can download concurently).
 
 the `auto_sync` function is then calling `update_task` in a loop, waiting 5 seconds after each time.
 
@@ -65,7 +65,7 @@ you need protobuf to be installed to be able to run the gen.
 the database can be initialized using `cargo run --bin=initdb` be sure to set the postgres_uri appropriately in .envrc and to then source the file before
 running the command, be sure to provide a valid database string.
 
-the program starts from the latest block on the chain, it would be a trivial change to make it start from the latest block in the db
+the program starts from the 10th latest block, it would be a trivial change to make it start from the latest block in the db
 or the first if none is found.
 
 # Improvement suggestions:
@@ -80,7 +80,7 @@ the rest of the code would not need to be changed.
 - timeouts
 - and generally you can just use `rg TODO` to find all the things that could improved i commented on
 - database integrity checks
-- incremental block saving in batches for fecth_stream.
+- adding backtraces in the error wrapper struct
 - adding more cli arguments, like bind address, update rate etc...
 - automatic filling of holes in the database
 - remove `#[allow(unused)]` in lib.rs and remove all unused warns.

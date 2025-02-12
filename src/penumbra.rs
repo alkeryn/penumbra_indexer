@@ -91,7 +91,7 @@ use futures::stream::StreamExt;
 impl PenumbraIndexer {
     pub async fn new(db: Box<dyn crate::db::Db>, settings: PenumbraIndexerSettings) -> IndexerResult<Self> {
         let pen = Penumbra::new(&settings.node).await?;
-        let current_block = pen.get_penumbra_latest_block_height().await?.expect("failed to get current_block") - 1; // TODO get from db
+        let current_block = pen.get_penumbra_latest_block_height().await?.expect("failed to get current_block") - 10; // TODO get from db
         let current_block = tokio::sync::Mutex::new(current_block as usize);
         let pen = std::sync::Arc::new(pen);
         Ok(
@@ -103,7 +103,7 @@ impl PenumbraIndexer {
             }
         )
     }
-    pub async fn fetch_delta(&self, range: std::ops::Range<usize>) -> Vec<BlockResult> {
+    pub async fn fetch_delta(&self, range: std::ops::Range<usize>) -> impl futures::Stream<Item = BlockResult> {
         let stream = futures::stream::iter(range);
         self.fetch_stream(stream).await
     }
@@ -115,35 +115,29 @@ impl PenumbraIndexer {
         Ok(success_blocks)
     }
 
-    pub async fn fetch_stream(&self, stream: impl futures::Stream<Item = usize> + Send + 'static) -> Vec<BlockResult> {
-        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<BlockResult>();
-
+    pub async fn fetch_stream(&self, stream: impl futures::Stream<Item = usize> + Send + 'static) -> impl futures::Stream<Item = BlockResult> {
         let pen = self.pen.clone();
-        let concurency = self.settings.concurency;
-        let task = tokio::spawn(async move {
-            stream.for_each_concurrent(concurency, |n| {
-                let pen = &pen;
-                let tx = tx.clone();
-                async move {
-                    let b = get_block_json(n, pen).await;
-                    match b {
-                        Ok(_) => log::info!("downloaded block {}", n),
-                        Err(_) => log::error!("failed to download block {}", n)
-                    }
-                    tx.send(BlockResult {
-                        nth: n,
-                        r: b.map(|b| crate::db::Block {
-                            nth: n,
-                            data: b
-                        })
-                    }).expect("failed to send to channel");
-                }
-            }).await;
-        });
-        // TODO it is possible to print them in order
-        let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;
-        let _ = task.await;
-        blocks
+        let stream = stream
+            .map(move |n| {
+                let pen = pen.clone();
+                (n, pen)
+            })
+        .map(|(n, pen)| async move {
+            let b = get_block_json(n, &pen).await;
+            match b {
+                Ok(_) => log::info!("downloaded block {}", n),
+                Err(_) => log::error!("failed to download block {}", n)
+            }
+            BlockResult {
+                nth: n,
+                r: b.map(|b| crate::db::Block {
+                    nth: n,
+                    data: b
+                })
+            }
+        })
+        .buffered(self.settings.concurency);
+        Box::pin(stream)
     }
 
     pub async fn update_task(&self) -> IndexerResult<()> {
@@ -151,18 +145,21 @@ impl PenumbraIndexer {
         let current_height = self.pen.get_penumbra_latest_block_height().await?.expect("can't get block height") as usize;
         if current_height > *current_block {
             let range = *current_block+1..current_height+1;
-            let new_blocks = self.fetch_delta(range).await;
-            let success_blocks : Vec<_> = new_blocks.into_iter().filter_map(|b| {
-                match b.r {
-                    Ok(data) => Some(data),
-                    Err(_) => {
-                        // TODO handle failure
-                        None
+            let mut chunks = self.fetch_delta(range).await.chunks(50);
+            while let Some(chunk) = chunks.next().await {
+                let success_blocks : Vec<_> = chunk.into_iter().filter_map(|b| {
+                    match b.r {
+                        Ok(data) => Some(data),
+                        Err(_) => {
+                            // TODO handle failure
+                            None
+                        }
                     }
-                }
-            }).collect();
-            self.db.store_new_blocks(&success_blocks).await?;
-            *current_block = current_height;
+                }).collect();
+                self.db.store_new_blocks(&success_blocks).await?;
+                *current_block = success_blocks.last().expect("empty arr, shouldn't happen").nth;
+                log::info!("current_block is {}", *current_block);
+            }
         }
         Ok(())
     }

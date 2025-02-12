@@ -24,7 +24,7 @@ impl IntoResponse for crate::errors::ErrorWrapper {
 use axum::response::IntoResponse;
 use crate::errors::IndexerResult;
 async fn get_blocks(State(pen): State<std::sync::Arc<crate::penumbra::PenumbraIndexer>>) -> IndexerResult<impl IntoResponse> {
-    let latest = pen.get_lattest_block().await;
+    let latest = pen.get_latest_block().await;
     let last_ten = latest-9..latest+1;
     let blocks = pen.fetch_blocks_db(last_ten.collect()).await?;
     let json = serde_json::value::to_value(blocks)?;

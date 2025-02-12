@@ -47,7 +47,7 @@ impl Penumbra {
             }
         )
     }
-    pub async fn get_penumbra_lattest_block_height(&self) -> Result<Option<u64>, tonic::Status> {
+    pub async fn get_penumbra_latest_block_height(&self) -> Result<Option<u64>, tonic::Status> {
         let mut client = self.tendermint_client.clone();
         let r = client.get_status(GetStatusRequest{})
             .await?.into_inner()
@@ -91,7 +91,7 @@ use futures::stream::StreamExt;
 impl PenumbraIndexer {
     pub async fn new(db: Box<dyn crate::db::Db>, settings: PenumbraIndexerSettings) -> IndexerResult<Self> {
         let pen = Penumbra::new(&settings.node).await?;
-        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block") - 1; // TODO get from db
+        let current_block = pen.get_penumbra_latest_block_height().await?.expect("failed to get current_block") - 1; // TODO get from db
         let current_block = tokio::sync::Mutex::new(current_block as usize);
         let pen = std::sync::Arc::new(pen);
         Ok(
@@ -148,7 +148,7 @@ impl PenumbraIndexer {
 
     pub async fn update_task(&self) -> IndexerResult<()> {
         let mut current_block = self.current_block.lock().await;
-        let current_height = self.pen.get_penumbra_lattest_block_height().await?.expect("can't get block height") as usize;
+        let current_height = self.pen.get_penumbra_latest_block_height().await?.expect("can't get block height") as usize;
         if current_height > *current_block {
             let range = *current_block+1..current_height+1;
             let new_blocks = self.fetch_delta(range).await;
@@ -167,7 +167,7 @@ impl PenumbraIndexer {
         Ok(())
     }
 
-    pub async fn get_lattest_block(&self) -> usize {
+    pub async fn get_latest_block(&self) -> usize {
         *self.current_block.lock().await
     }
 

@@ -12,7 +12,7 @@ blocks can be downloaded **concurently** (concurency being an argument that can 
 so there is the `Penumbra` struct in penumbra.rs, its purpose is to wrap around the grpc connection and make the various
 penumbra requests, like :
 
-- `get_penumbra_lattest_block_height` which get the block height
+- `get_penumbra_latest_block_height` which get the block height
 - `get_block_n` which get the block n's content
 
 ## database:
@@ -36,7 +36,7 @@ then there is the `PenumbraIndexer` in penumbra.rs, as its name suggest, its rol
 around `Penumbra` and a `Box<dyn Db>`, meaning it'll use `Penumbra` to get onchain data and use any struct that impl the `Db`
 trait to save and query the data to the database, it could be anything, even ram.
 
-the indexer has a `update_task` function that basically fetch the lattest block height, download all the missing blocks from the lattest synced
+the indexer has a `update_task` function that basically fetch the latest block height, download all the missing blocks from the latest synced
 and save them to database.
 
 the `auto_sync` function is then calling `update_task` in a loop, waiting 5 seconds after each time.
@@ -65,7 +65,7 @@ you need protobuf to be installed to be able to run the gen.
 the database can be initialized using `cargo --bin=initdb` be sure to set the postgres_uri appropriately in .envrc and to then source the file before
 running the command, be sure to provide a valid database string.
 
-the program starts from the lattest block on the chain, it would be a trivial change to make it start from the lattest block in the db
+the program starts from the latest block on the chain, it would be a trivial change to make it start from the latest block in the db
 or the first if none is found.
 
 # Improvment suggestions:

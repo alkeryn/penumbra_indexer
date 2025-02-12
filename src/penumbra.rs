@@ -8,7 +8,7 @@ use penumbra::util::tendermint_proxy::v1::{
 use penumbra::Message;
 
 pub trait Tjs {
-    fn to_json(self) -> BoxRes<serde_json::Value>;
+    fn to_json(self) -> IndexerResult<serde_json::Value>;
 }
 
 static DESCRIPTOR_POOL : std::sync::OnceLock<prost_reflect::DescriptorPool> = std::sync::OnceLock::new();
@@ -23,7 +23,7 @@ fn get_descriptor_pool() -> prost_reflect::DescriptorPool {
 
 
 impl Tjs for GetBlockByHeightResponse {
-    fn to_json(self) -> BoxRes<serde_json::Value> {
+    fn to_json(self) -> IndexerResult<serde_json::Value> {
         let v = self.encode_to_vec();
         let pool = get_descriptor_pool();
         let des = pool.get_message_by_name("penumbra.util.tendermint_proxy.v1.GetBlockByHeightResponse").expect("couldn't get descriptorpool");
@@ -63,22 +63,57 @@ impl Penumbra {
     }
 }
 
+#[allow(unused)]
+pub struct Block {
+    nth: usize,
+    data: serde_json::Value,
+}
+
 // fetch_delta(range)
 pub struct PenumbraIndexer {
-    pen: Penumbra,
+    pen: std::sync::Arc<Penumbra>,
     current_block: std::sync::atomic::AtomicUsize,
     db: Box<dyn crate::db::Db>
 }
 
+async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<Block> {
+    let block = pen.get_block_n(n as i64).await?.to_json()?;
+    Ok(Block {
+        nth: n,
+        data: block
+    })
+}
+
+use futures::stream::StreamExt;
 impl PenumbraIndexer {
-    async fn new(node: &str, db: Box<dyn crate::db::Db>) -> BoxRes<Self> {
-        let current_block = std::sync::atomic::AtomicUsize::new(0); // TODO get from db
+    async fn new(node: &str, db: Box<dyn crate::db::Db>) -> IndexerResult<Self> {
+        let pen = Penumbra::new(node).await?;
+        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block");
+        let current_block = std::sync::atomic::AtomicUsize::new(current_block as usize); // TODO get from db
+        let pen = std::sync::Arc::new(pen);
         Ok(
             Self {
-                pen: Penumbra::new(node).await?,
+                pen,
                 current_block,
                 db
             }
         )
+    }
+    async fn fetch_delta(&self, range: std::ops::Range<usize>) {
+        let stream = futures::stream::iter(range);
+        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<IndexerResult<Block>>();
+
+        let pen = self.pen.clone();
+        let task = tokio::spawn(async move {
+                stream.for_each_concurrent(50, |n| {
+                    let pen = &pen;
+                    let tx = tx.clone();
+                    async move {
+                        let b = get_block_json(n, pen).await;
+                        tx.send(b);
+                    }
+                }).await;
+        });
+        // let rx = tokio_stream::
     }
 }

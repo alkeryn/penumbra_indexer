@@ -9,7 +9,10 @@ struct Args {
 
     /// verbosity
     #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8
+    verbose: u8,
+
+    #[arg(short, long, default_value = "50")]
+    concurency: usize
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -18,7 +21,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let node = args.node_addres;
     let db : Box<dyn db::Db> = Box::new(db::DummyDb {});
-    let penumbra_indexer = PenumbraIndexer::new(&node, db).await?;
+    let penumbra_indexer = PenumbraIndexer::new(db, PenumbraIndexerSettings {
+        node: node,
+        concurency: args.concurency
+    }).await?;
+    log::info!("indexer initialized");
     penumbra_indexer.update_task().await?;
     // let pen = Penumbra::new(&node).await?;
     // let block = pen.get_penumbra_lattest_block_height().await?.unwrap();

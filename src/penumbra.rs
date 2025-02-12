@@ -63,6 +63,7 @@ impl Penumbra {
     }
 }
 
+// TODO add timeouts
 async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::Value> {
     pen.get_block_n(n as i64).await?.to_json()
 }
@@ -77,13 +78,19 @@ pub struct BlockResult {
 pub struct PenumbraIndexer {
     pen: std::sync::Arc<Penumbra>,
     current_block: tokio::sync::Mutex<usize>,
-    db: Box<dyn crate::db::Db>
+    db: Box<dyn crate::db::Db>,
+    settings: PenumbraIndexerSettings
+}
+
+pub struct PenumbraIndexerSettings {
+    pub node: String,
+    pub concurency: usize
 }
 
 use futures::stream::StreamExt;
 impl PenumbraIndexer {
-    pub async fn new(node: &str, db: Box<dyn crate::db::Db>) -> IndexerResult<Self> {
-        let pen = Penumbra::new(node).await?;
+    pub async fn new(db: Box<dyn crate::db::Db>, settings: PenumbraIndexerSettings) -> IndexerResult<Self> {
+        let pen = Penumbra::new(&settings.node).await?;
         let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block"); // TODO get from db
         let current_block = tokio::sync::Mutex::new(current_block as usize);
         let pen = std::sync::Arc::new(pen);
@@ -91,7 +98,8 @@ impl PenumbraIndexer {
             Self {
                 pen,
                 current_block,
-                db
+                db,
+                settings
             }
         )
     }
@@ -100,12 +108,14 @@ impl PenumbraIndexer {
         let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<BlockResult>();
 
         let pen = self.pen.clone();
+        let concurency = self.settings.concurency;
         let task = tokio::spawn(async move {
-                stream.for_each_concurrent(50, |n| {
+                stream.for_each_concurrent(concurency, |n| {
                     let pen = &pen;
                     let tx = tx.clone();
                     async move {
                         let b = get_block_json(n, pen).await;
+                        log::info!("downloaded block {}", n);
                         tx.send(BlockResult {
                             nth: n,
                             r: b
@@ -113,6 +123,7 @@ impl PenumbraIndexer {
                     }
                 }).await;
         });
+        // TODO it is possible to print them in order
         let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;
         blocks
     }
@@ -129,7 +140,11 @@ impl PenumbraIndexer {
                         nth: b.nth,
                         data: data.clone()
                     }),
-                    Err(_) => None // TODO handle failure
+                    Err(_) => {
+                        // TODO handle failure
+                        log::warn!("failed to get block {}", b.nth);
+                        None
+                    }
                 }
             }).collect();
             self.db.store_new_blocks(&success_blocks).await?;

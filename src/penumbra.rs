@@ -74,6 +74,7 @@ async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::V
     pen.get_block_n(n as i64).await?.to_json()
 }
 
+#[derive(Debug)]
 pub struct BlockResult {
     nth: usize,
     r: IndexerResult<serde_json::Value>
@@ -116,13 +117,12 @@ impl PenumbraIndexer {
         blocks
     }
 
-    async fn update_task(&self) -> IndexerResult<()> {
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        let current_block = self.current_block.load(std::sync::atomic::Ordering::Relaxed);
+    pub async fn update_task(&self) -> IndexerResult<()> {
+        let current_block = self.current_block.load(std::sync::atomic::Ordering::Relaxed) - 3;
         let current_height = self.pen.get_penumbra_lattest_block_height().await?.expect("can't get block height") as usize;
         if current_height > current_block {
-            let range = current_block..current_height;
-            println!("{:?}", range);
+            let range = current_block+1..current_height+1;
+            let new_blocks = self.fetch_delta(range).await;
         }
         Ok(())
     }

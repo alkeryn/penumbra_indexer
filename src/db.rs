@@ -1,6 +1,12 @@
 use async_trait::async_trait;
 use crate::errors::IndexerResult;
-use crate::penumbra::Block;
+
+#[allow(unused)]
+pub struct Block {
+    nth: usize,
+    data: serde_json::Value,
+}
+
 
 #[async_trait]
 pub trait Db {

@@ -63,12 +63,6 @@ impl Penumbra {
     }
 }
 
-#[allow(unused)]
-pub struct Block {
-    nth: usize,
-    data: serde_json::Value,
-}
-
 // fetch_delta(range)
 pub struct PenumbraIndexer {
     pen: std::sync::Arc<Penumbra>,
@@ -76,12 +70,13 @@ pub struct PenumbraIndexer {
     db: Box<dyn crate::db::Db>
 }
 
-async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<Block> {
-    let block = pen.get_block_n(n as i64).await?.to_json()?;
-    Ok(Block {
-        nth: n,
-        data: block
-    })
+async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::Value> {
+    pen.get_block_n(n as i64).await?.to_json()
+}
+
+struct BlockResult {
+    nth: usize,
+    r: IndexerResult<serde_json::Value>
 }
 
 use futures::stream::StreamExt;
@@ -99,9 +94,9 @@ impl PenumbraIndexer {
             }
         )
     }
-    async fn fetch_delta(&self, range: std::ops::Range<usize>) {
+    async fn fetch_delta(&self, range: std::ops::Range<usize>) -> Vec<BlockResult> {
         let stream = futures::stream::iter(range);
-        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<IndexerResult<Block>>();
+        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<BlockResult>();
 
         let pen = self.pen.clone();
         let task = tokio::spawn(async move {
@@ -110,10 +105,14 @@ impl PenumbraIndexer {
                     let tx = tx.clone();
                     async move {
                         let b = get_block_json(n, pen).await;
-                        tx.send(b);
+                        tx.send(BlockResult {
+                            nth: n,
+                            r: b
+                        });
                     }
                 }).await;
         });
-        // let rx = tokio_stream::
+        let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;
+        blocks
     }
 }

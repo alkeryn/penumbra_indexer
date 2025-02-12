@@ -15,14 +15,14 @@ struct Args {
     concurency: usize
 }
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>>{
+async fn main() -> errors::IndexerResult<()>{
     let args = Args::parse();
     utils::set_logging_verbose(args.verbose);
 
     let node = args.node_addres;
     let db : Box<dyn db::Db> = Box::new(db::DummyDb {});
     let penumbra_indexer = PenumbraIndexer::new(db, PenumbraIndexerSettings {
-        node: node,
+        node,
         concurency: args.concurency
     }).await?;
     log::info!("indexer initialized");

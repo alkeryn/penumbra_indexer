@@ -49,7 +49,9 @@ impl_errorkind!(
     TonicTransport(tonic::transport::Error),
     SerdeJson(serde_json::Error),
     DecodeError(prost::DecodeError),
-    SqlxError(sqlx::Error)
+    SqlxError(sqlx::Error),
+    JoinError(tokio::task::JoinError),
+    VarError(std::env::VarError)
 );
 
 // TODO later use an error wrapper struct

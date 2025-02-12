@@ -16,7 +16,7 @@ impl std::error::Error for ErrorWrapper {}
 macro_rules! impl_errorkind {
     (
         $($name:ident($err_type:ty)),*;
-        $($unimpl:ident($err_type_unimpl:ty)),*
+        $($unimpl:ident$(($err_type_unimpl:ty))?),*
     ) => {
         #[derive(Debug)]
         pub enum ErrorKind {

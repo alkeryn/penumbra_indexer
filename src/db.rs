@@ -15,6 +15,15 @@ pub trait Db : Send + Sync {
     async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Vec<Block>>;
 }
 
+pub fn find_missing_blocks(blocks: Vec<crate::db::Block>, all: &[usize]) -> Vec<usize> {
+    let success_blocks : std::collections::HashSet<usize> = blocks.iter().map(|e| e.nth).collect();
+    let all_blocks : std::collections::HashSet<usize> = all.iter().map(|i| *i).collect();
+
+    all_blocks.difference(&success_blocks)
+        .into_iter()
+        .map(|e| *e)
+        .collect()
+}
 
 pub struct DummyDb {}
 

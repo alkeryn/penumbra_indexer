@@ -3,16 +3,16 @@ use crate::errors::IndexerResult;
 
 #[derive(Default)]
 pub struct Block {
-    nth: usize,
-    data: serde_json::Value,
+    pub nth: usize,
+    pub data: serde_json::Value,
 }
 
 
 #[async_trait]
 pub trait Db {
     async fn get_last_block(&self) -> IndexerResult<usize>;
-    async fn store_new_block(&self, block: Block) -> IndexerResult<()>;
-    async fn get_block(&self, nth: usize) -> IndexerResult<Block>;
+    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()>;
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block>;
 }
 
 
@@ -38,10 +38,10 @@ impl Db for PostgresDB {
     async fn get_last_block(&self) -> IndexerResult<usize> {
         Ok(0)
     }
-    async fn store_new_block(&self, block: Block) -> IndexerResult<()> {
+    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()> {
         Ok(())
     }
-    async fn get_block(&self, nth: usize) -> IndexerResult<Block> {
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block> {
         Ok(Block::default())
     }
 }
@@ -51,10 +51,10 @@ impl Db for DummyDb {
     async fn get_last_block(&self) -> IndexerResult<usize> {
         Ok(0)
     }
-    async fn store_new_block(&self, block: Block) -> IndexerResult<()> {
+    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()> {
         Ok(())
     }
-    async fn get_block(&self, nth: usize) -> IndexerResult<Block> {
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block> {
         Ok(Block::default())
     }
 }

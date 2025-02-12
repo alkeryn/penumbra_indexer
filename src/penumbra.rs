@@ -63,13 +63,6 @@ impl Penumbra {
     }
 }
 
-// fetch_delta(range)
-pub struct PenumbraIndexer {
-    pen: std::sync::Arc<Penumbra>,
-    current_block: std::sync::atomic::AtomicUsize,
-    db: Box<dyn crate::db::Db>
-}
-
 async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::Value> {
     pen.get_block_n(n as i64).await?.to_json()
 }
@@ -80,12 +73,19 @@ pub struct BlockResult {
     r: IndexerResult<serde_json::Value>
 }
 
+// fetch_delta(range)
+pub struct PenumbraIndexer {
+    pen: std::sync::Arc<Penumbra>,
+    current_block: tokio::sync::Mutex<usize>,
+    db: Box<dyn crate::db::Db>
+}
+
 use futures::stream::StreamExt;
 impl PenumbraIndexer {
     pub async fn new(node: &str, db: Box<dyn crate::db::Db>) -> IndexerResult<Self> {
         let pen = Penumbra::new(node).await?;
-        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block");
-        let current_block = std::sync::atomic::AtomicUsize::new(current_block as usize); // TODO get from db
+        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block"); // TODO get from db
+        let current_block = tokio::sync::Mutex::new(current_block as usize);
         let pen = std::sync::Arc::new(pen);
         Ok(
             Self {
@@ -118,11 +118,22 @@ impl PenumbraIndexer {
     }
 
     pub async fn update_task(&self) -> IndexerResult<()> {
-        let current_block = self.current_block.load(std::sync::atomic::Ordering::Relaxed) - 3;
+        let mut current_block = self.current_block.lock().await;
         let current_height = self.pen.get_penumbra_lattest_block_height().await?.expect("can't get block height") as usize;
-        if current_height > current_block {
-            let range = current_block+1..current_height+1;
+        if current_height > *current_block {
+            let range = *current_block+1..current_height+1;
             let new_blocks = self.fetch_delta(range).await;
+            let success_blocks : Vec<_> = new_blocks.iter().filter_map(|b| {
+                match &b.r {
+                    Ok(data) => Some(crate::db::Block {
+                        nth: b.nth,
+                        data: data.clone()
+                    }),
+                    Err(_) => None // TODO handle failure
+                }
+            }).collect();
+            self.db.store_new_blocks(&success_blocks).await?;
+            *current_block = current_height;
         }
         Ok(())
     }

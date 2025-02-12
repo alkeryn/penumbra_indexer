@@ -136,12 +136,13 @@ impl PenumbraIndexer {
                             nth: n,
                             data: b
                         })
-                    });
+                    }).expect("failed to send to channel");
                 }
             }).await;
         });
         // TODO it is possible to print them in order
         let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;
+        let _ = task.await;
         blocks
     }
 
@@ -177,7 +178,7 @@ impl PenumbraIndexer {
                 Ok(_) => {},
                 Err(e) => log::error!("{}", e)
             }
-            tokio::time::sleep(std::time::Duration::from_secs(5)); // update every 5 sec
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await; // update every 5 sec
         }
     }
 }

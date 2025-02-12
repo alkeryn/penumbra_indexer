@@ -115,7 +115,10 @@ impl PenumbraIndexer {
                     let tx = tx.clone();
                     async move {
                         let b = get_block_json(n, pen).await;
-                        log::info!("downloaded block {}", n);
+                        match b {
+                            Ok(_) => log::info!("downloaded block {}", n),
+                            Err(_) => log::error!("failed to download block {}", n)
+                        }
                         tx.send(BlockResult {
                             nth: n,
                             r: b
@@ -142,7 +145,6 @@ impl PenumbraIndexer {
                     }),
                     Err(_) => {
                         // TODO handle failure
-                        log::warn!("failed to get block {}", b.nth);
                         None
                     }
                 }

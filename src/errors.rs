@@ -48,7 +48,8 @@ impl_errorkind!(
     Tonic(tonic::Status),
     TonicTransport(tonic::transport::Error),
     SerdeJson(serde_json::Error),
-    DecodeError(prost::DecodeError)
+    DecodeError(prost::DecodeError),
+    SqlxError(sqlx::Error)
 );
 
 // TODO later use an error wrapper struct

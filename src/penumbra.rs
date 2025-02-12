@@ -74,14 +74,14 @@ async fn get_block_json(n: usize, pen: &Penumbra) -> IndexerResult<serde_json::V
     pen.get_block_n(n as i64).await?.to_json()
 }
 
-struct BlockResult {
+pub struct BlockResult {
     nth: usize,
     r: IndexerResult<serde_json::Value>
 }
 
 use futures::stream::StreamExt;
 impl PenumbraIndexer {
-    async fn new(node: &str, db: Box<dyn crate::db::Db>) -> IndexerResult<Self> {
+    pub async fn new(node: &str, db: Box<dyn crate::db::Db>) -> IndexerResult<Self> {
         let pen = Penumbra::new(node).await?;
         let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block");
         let current_block = std::sync::atomic::AtomicUsize::new(current_block as usize); // TODO get from db
@@ -94,7 +94,7 @@ impl PenumbraIndexer {
             }
         )
     }
-    async fn fetch_delta(&self, range: std::ops::Range<usize>) -> Vec<BlockResult> {
+    pub async fn fetch_delta(&self, range: std::ops::Range<usize>) -> Vec<BlockResult> {
         let stream = futures::stream::iter(range);
         let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<BlockResult>();
 
@@ -114,5 +114,16 @@ impl PenumbraIndexer {
         });
         let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;
         blocks
+    }
+
+    async fn update_task(&self) -> IndexerResult<()> {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        let current_block = self.current_block.load(std::sync::atomic::Ordering::Relaxed);
+        let current_height = self.pen.get_penumbra_lattest_block_height().await?.expect("can't get block height") as usize;
+        if current_height > current_block {
+            let range = current_block..current_height;
+            println!("{:?}", range);
+        }
+        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::errors::IndexerResult;
 
-#[allow(unused)]
+#[derive(Default)]
 pub struct Block {
     nth: usize,
     data: serde_json::Value,
@@ -16,9 +16,51 @@ pub trait Db {
 }
 
 
-pub struct DummyDb {
-}
+pub struct DummyDb {}
 
 pub struct PostgresDB {
     db: sqlx::postgres::PgPool
+}
+
+impl PostgresDB {
+    pub async fn new(address: &str) -> IndexerResult<Self> {
+        let db = sqlx::postgres::PgPool::connect(address).await?;
+        Ok(
+            Self {
+                db
+            }
+        )
+    }
+}
+
+#[async_trait]
+impl Db for PostgresDB {
+    async fn get_last_block(&self) -> IndexerResult<usize> {
+        Ok(0)
+    }
+    async fn store_new_block(&self, block: Block) -> IndexerResult<()> {
+        Ok(())
+    }
+    async fn get_block(&self, nth: usize) -> IndexerResult<Block> {
+        Ok(Block::default())
+    }
+}
+
+#[async_trait]
+impl Db for DummyDb {
+    async fn get_last_block(&self) -> IndexerResult<usize> {
+        Ok(0)
+    }
+    async fn store_new_block(&self, block: Block) -> IndexerResult<()> {
+        Ok(())
+    }
+    async fn get_block(&self, nth: usize) -> IndexerResult<Block> {
+        Ok(Block::default())
+    }
+}
+
+
+// this could be used in the future to layer db's for faster caching, ie ram <> redis <> postgres
+pub struct LayeredDB {
+    databases: Vec<Box<dyn Db>>
 }

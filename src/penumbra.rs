@@ -91,7 +91,7 @@ use futures::stream::StreamExt;
 impl PenumbraIndexer {
     pub async fn new(db: Box<dyn crate::db::Db>, settings: PenumbraIndexerSettings) -> IndexerResult<Self> {
         let pen = Penumbra::new(&settings.node).await?;
-        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block"); // TODO get from db
+        let current_block = pen.get_penumbra_lattest_block_height().await?.expect("failed to get current_block") - 1; // TODO get from db
         let current_block = tokio::sync::Mutex::new(current_block as usize);
         let pen = std::sync::Arc::new(pen);
         Ok(
@@ -168,6 +168,10 @@ impl PenumbraIndexer {
     pub async fn auto_sync(&self) {
         loop {
             let r = self.update_task().await;
+            match r {
+                Ok(_) => {},
+                Err(e) => log::error!("{}", e)
+            }
             tokio::time::sleep(std::time::Duration::from_secs(5)); // update every 5 sec
         }
     }

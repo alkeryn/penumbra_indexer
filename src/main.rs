@@ -20,7 +20,8 @@ async fn main() -> errors::IndexerResult<()>{
     utils::set_logging_verbose(args.verbose);
 
     let node = args.node_addres;
-    let db : Box<dyn db::Db> = Box::new(db::DummyDb {});
+    let postgres_uri = std::env::var("POSTGRES_URI")?;
+    let db : Box<dyn db::Db> = Box::new(db::PostgresDB::new(&postgres_uri).await?);
     let penumbra_indexer = PenumbraIndexer::new(db, PenumbraIndexerSettings {
         node,
         concurency: args.concurency

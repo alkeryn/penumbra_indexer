@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::errors::IndexerResult;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Block {
     pub nth: usize,
     pub data: serde_json::Value,
@@ -11,38 +11,67 @@ pub struct Block {
 #[async_trait]
 pub trait Db : Send + Sync {
     async fn get_last_block(&self) -> IndexerResult<usize>;
-    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()>;
-    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block>;
+    async fn store_new_blocks(&self, blocks: &[Block]) -> IndexerResult<()>;
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Vec<Block>>;
 }
 
 
 pub struct DummyDb {}
 
 pub struct PostgresDB {
-    db: sqlx::postgres::PgPool
+    pg: sqlx::postgres::PgPool
 }
 
 impl PostgresDB {
     pub async fn new(address: &str) -> IndexerResult<Self> {
-        let db = sqlx::postgres::PgPool::connect(address).await?;
+        let pg = sqlx::postgres::PgPool::connect(address).await?;
         Ok(
             Self {
-                db
+                pg
             }
         )
     }
 }
 
+use sqlx::Row;
 #[async_trait]
 impl Db for PostgresDB {
     async fn get_last_block(&self) -> IndexerResult<usize> {
-        Ok(0)
+        let id : i64 = sqlx::query("SELECT id FROM blocks ORDER BY id DESC LIMIT 1")
+            .fetch_one(&self.pg)
+            .await?.get("id");
+        Ok(id as usize)
     }
-    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()> {
+    async fn store_new_blocks(&self, blocks: &[Block]) -> IndexerResult<()> {
+        let mut query = sqlx::QueryBuilder::new(
+            "INSERT INTO blocks (id, data) "
+        );
+        query.push_values(blocks, |mut q, block | {
+            q.push_bind(block.nth as i64);
+            q.push_bind(&block.data);
+        });
+
+        query.push(" ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data");
+        let query = query.build().execute(&self.pg).await?;
         Ok(())
     }
-    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block> {
-        Ok(Block::default())
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Vec<Block>> {
+        let mut query = sqlx::QueryBuilder::new(
+            "SELECT * from blocks where id in "
+        );
+        query.push_tuples(nth, |mut b, id| {
+            b.push_bind(*id as i64);
+        });
+        let r : Vec<_> = query
+            .build_query_as::<(i64, serde_json::Value)>()
+            .fetch_all(&self.pg)
+            .await?.iter().map(|e| {
+                Block {
+                    nth: e.0 as usize,
+                    data: e.1.clone()
+                }
+            }).collect();
+        Ok(r)
     }
 }
 
@@ -51,11 +80,11 @@ impl Db for DummyDb {
     async fn get_last_block(&self) -> IndexerResult<usize> {
         Ok(0)
     }
-    async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()> {
+    async fn store_new_blocks(&self, blocks: &[Block]) -> IndexerResult<()> {
         Ok(())
     }
-    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block> {
-        Ok(Block::default())
+    async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Vec<Block>> {
+        Ok(Vec::default())
     }
 }
 

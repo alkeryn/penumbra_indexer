@@ -54,5 +54,3 @@ impl_errorkind!(
     VarError(std::env::VarError),
     IoError(std::io::Error)
 );
-
-// TODO later use an error wrapper struct

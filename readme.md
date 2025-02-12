@@ -2,7 +2,7 @@
 
 ## how to run it:
 
-just do `cargo run -- -c 100 --vvv`
+just do `cargo run --release -- -c 100 --vvv`
 
 ### concurency:
 
@@ -58,28 +58,29 @@ you can enable all loggin function using `-vvvv`, you can see how i manage it in
 
 # Good to know:
 
-the file `descriptor.bin` is necessary to be able to conver the grpc responses to json using `prost_reflection`
-you can do `cargo --bin=gen` to create it, it relies on the proto files from the penumbra github repo.
+the file `descriptor.bin` is necessary to be able to convert the grpc responses to json using `prost_reflection`
+you can do `cargo run --release --bin=gen` to create it, it relies on the proto files from the penumbra github repo.
 you need protobuf to be installed to be able to run the gen.
 
-the database can be initialized using `cargo --bin=initdb` be sure to set the postgres_uri appropriately in .envrc and to then source the file before
+the database can be initialized using `cargo run --bin=initdb` be sure to set the postgres_uri appropriately in .envrc and to then source the file before
 running the command, be sure to provide a valid database string.
 
 the program starts from the latest block on the chain, it would be a trivial change to make it start from the latest block in the db
 or the first if none is found.
 
-# Improvment suggestions:
+# Improvement suggestions:
 
 because this is a technical test and not remunerated, some things have not been made, some of which i'd usually do for more serious projects.
 
 - `PenumbraIndexer` could try to fetch and store a block when it is asked for a block that's not found in the db
 - Retries upon failure to get a block
-- `LayeredDB` in db.rs could be implemented, this would allow to pipeline database, for example redis and postgres, trying the faster one first.\
+- `LayeredDB` in db.rs could be implemented, this would allow to pipeline databases, for example redis and postgres, trying the faster one first.\
 the rest of the code would not need to be changed.
 - more error handling, and more verbose error reporting
 - timeouts
 - and generally you can just use `rg TODO` to find all the things that could improved i commented on
 - database integrity checks
+- incremental block saving in batches for fecth_stream.
 - adding more cli arguments, like bind address, update rate etc...
 - automatic filling of holes in the database
 - remove `#[allow(unused)]` in lib.rs and remove all unused warns.

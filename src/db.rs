@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use crate::errors::IndexerResult;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, serde::Serialize)]
 pub struct Block {
     pub nth: usize,
+    #[serde(flatten)]
     pub data: serde_json::Value,
 }
 

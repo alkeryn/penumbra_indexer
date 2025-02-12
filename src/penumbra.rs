@@ -166,6 +166,10 @@ impl PenumbraIndexer {
         Ok(())
     }
 
+    pub async fn get_lattest_block(&self) -> usize {
+        *self.current_block.lock().await
+    }
+
     pub async fn auto_sync(&self) {
         loop {
             let r = self.update_task().await;

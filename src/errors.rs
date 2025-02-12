@@ -51,7 +51,8 @@ impl_errorkind!(
     DecodeError(prost::DecodeError),
     SqlxError(sqlx::Error),
     JoinError(tokio::task::JoinError),
-    VarError(std::env::VarError)
+    VarError(std::env::VarError),
+    IoError(std::io::Error)
 );
 
 // TODO later use an error wrapper struct

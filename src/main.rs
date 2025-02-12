@@ -14,6 +14,7 @@ struct Args {
     #[arg(short, long, default_value = "50")]
     concurency: usize
 }
+
 #[tokio::main]
 async fn main() -> errors::IndexerResult<()>{
     let args = Args::parse();
@@ -35,6 +36,7 @@ async fn main() -> errors::IndexerResult<()>{
         pen.auto_sync().await;
     });
 
+    crate::web::start_axum(penumbra_indexer).await?;
     sync_task.await?;
     Ok(())
 }

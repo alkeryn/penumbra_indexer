@@ -152,4 +152,11 @@ impl PenumbraIndexer {
         }
         Ok(())
     }
+
+    pub async fn auto_sync(&self) {
+        loop {
+            let r = self.update_task().await;
+            tokio::time::sleep(std::time::Duration::from_secs(5)); // update every 5 sec
+        }
+    }
 }

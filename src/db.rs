@@ -9,7 +9,7 @@ pub struct Block {
 
 
 #[async_trait]
-pub trait Db {
+pub trait Db : Send + Sync {
     async fn get_last_block(&self) -> IndexerResult<usize>;
     async fn store_new_blocks(&self, block: &[Block]) -> IndexerResult<()>;
     async fn get_blocks(&self, nth: &[usize]) -> IndexerResult<Block>;

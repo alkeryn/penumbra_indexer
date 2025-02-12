@@ -26,10 +26,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         concurency: args.concurency
     }).await?;
     log::info!("indexer initialized");
-    penumbra_indexer.update_task().await?;
+
+    let sync_task = tokio::spawn(async move {
+        penumbra_indexer.auto_sync().await;
+    });
+    // penumbra_indexer.update_task().await?;
     // let pen = Penumbra::new(&node).await?;
     // let block = pen.get_penumbra_lattest_block_height().await?.unwrap();
     // let b = pen.get_block_n(block as i64).await?;
     // println!("{}", b.to_json()?);
+    sync_task.await?;
     Ok(())
 }

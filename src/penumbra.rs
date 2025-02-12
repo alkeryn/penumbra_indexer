@@ -105,26 +105,36 @@ impl PenumbraIndexer {
     }
     pub async fn fetch_delta(&self, range: std::ops::Range<usize>) -> Vec<BlockResult> {
         let stream = futures::stream::iter(range);
+        self.fetch_stream(stream).await
+    }
+
+    pub async fn fetch_blocks(&self, blocks: Vec<usize>) -> Vec<BlockResult> {
+        let stream = futures::stream::iter(blocks);
+        // TODO query db for those blocks
+        self.fetch_stream(stream).await
+    }
+
+    pub async fn fetch_stream(&self, stream: impl futures::Stream<Item = usize> + Send + 'static) -> Vec<BlockResult> {
         let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<BlockResult>();
 
         let pen = self.pen.clone();
         let concurency = self.settings.concurency;
         let task = tokio::spawn(async move {
-                stream.for_each_concurrent(concurency, |n| {
-                    let pen = &pen;
-                    let tx = tx.clone();
-                    async move {
-                        let b = get_block_json(n, pen).await;
-                        match b {
-                            Ok(_) => log::info!("downloaded block {}", n),
-                            Err(_) => log::error!("failed to download block {}", n)
-                        }
-                        tx.send(BlockResult {
-                            nth: n,
-                            r: b
-                        });
+            stream.for_each_concurrent(concurency, |n| {
+                let pen = &pen;
+                let tx = tx.clone();
+                async move {
+                    let b = get_block_json(n, pen).await;
+                    match b {
+                        Ok(_) => log::info!("downloaded block {}", n),
+                        Err(_) => log::error!("failed to download block {}", n)
                     }
-                }).await;
+                    tx.send(BlockResult {
+                        nth: n,
+                        r: b
+                    });
+                }
+            }).await;
         });
         // TODO it is possible to print them in order
         let blocks : Vec<_> = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).collect().await;

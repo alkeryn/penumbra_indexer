@@ -81,7 +81,7 @@ the rest of the code would not need to be changed.
 - and generally you can just use `rg TODO` to find all the things that could improved i commented on
 - database integrity checks
 - adding backtraces in the error wrapper struct
-- adding more cli arguments, like bind address, update rate etc...
+- adding more cli arguments, like update rate, max_retries, bulk_insert_size etc...
 - automatic filling of holes in the database
 - remove `#[allow(unused)]` in lib.rs and remove all unused warns.
 - things could be cleaner, but again this is a technical test, not paid labor.
@@ -95,6 +95,7 @@ Options:
   -n <NODE_ADDRES>               what grpc node to use [default: https://grpc.penumbra.silentvalidator.com]
   -v, --verbose...               verbosity
   -c, --concurency <CONCURENCY>  [default: 50]
+  -b, --bind-addr <BIND_ADDR>    the bind address for the web server [default: localhost:8080]
   -h, --help                     Print help
 ```
 

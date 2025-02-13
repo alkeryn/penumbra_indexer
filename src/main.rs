@@ -12,7 +12,11 @@ struct Args {
     verbose: u8,
 
     #[arg(short, long, default_value = "50")]
-    concurency: usize
+    concurency: usize,
+
+    /// the bind address for the web server
+    #[arg(short, long, default_value = "localhost:8080")]
+    bind_addr: String
 }
 
 #[tokio::main]
@@ -36,7 +40,7 @@ async fn main() -> errors::IndexerResult<()>{
         pen.auto_sync().await;
     });
 
-    crate::web::start_axum(penumbra_indexer).await?;
+    crate::web::start_axum(penumbra_indexer, &args.bind_addr).await?;
     sync_task.await?;
     Ok(())
 }

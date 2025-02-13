@@ -1,11 +1,11 @@
 use axum::routing::get;
 use axum::extract::State;
-pub async fn start_axum(indexer: std::sync::Arc<crate::penumbra::PenumbraIndexer>) -> crate::errors::IndexerResult<()>{
+pub async fn start_axum(indexer: std::sync::Arc<crate::penumbra::PenumbraIndexer>, bind_addr: &str) -> crate::errors::IndexerResult<()>{
     let app = axum::Router::new()
         .route("/", get(get_blocks))
         .with_state(indexer);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    let listener = tokio::net::TcpListener::bind(bind_addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }

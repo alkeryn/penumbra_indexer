@@ -17,6 +17,7 @@ impl IntoResponse for crate::errors::ErrorWrapper {
             // TODO more error type handling
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
+        log::error!("{}", self);
         (status, message).into_response()
     }
 }

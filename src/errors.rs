@@ -20,8 +20,8 @@ macro_rules! impl_errorkind {
     ) => {
         #[derive(Debug)]
         pub enum ErrorKind {
-            $($name($err_type)),*
-
+            $($name($err_type),)*
+            $($unimpl$(($err_type_unimpl))?),*
         }
         $(
             impl From<$err_type> for ErrorWrapper {
@@ -54,3 +54,11 @@ impl_errorkind!(
     VarError(std::env::VarError),
     IoError(std::io::Error)
 );
+
+impl From<ErrorKind> for ErrorWrapper {
+    fn from(value: ErrorKind) -> Self {
+        ErrorWrapper {
+            source: value
+        }
+    }
+}

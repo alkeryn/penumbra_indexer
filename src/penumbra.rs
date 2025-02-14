@@ -79,7 +79,8 @@ pub struct PenumbraIndexer {
     pen: std::sync::Arc<Penumbra>,
     current_block: tokio::sync::Mutex<usize>,
     db: Box<dyn crate::db::Db>,
-    settings: PenumbraIndexerSettings
+    settings: PenumbraIndexerSettings,
+    blocks_to_retry: tokio::sync::RwLock<std::collections::HashSet<usize>>
 }
 
 pub struct PenumbraIndexerSettings {
@@ -99,7 +100,8 @@ impl PenumbraIndexer {
                 pen,
                 current_block,
                 db,
-                settings
+                settings,
+                blocks_to_retry: Default::default()
             }
         )
     }
@@ -150,8 +152,9 @@ impl PenumbraIndexer {
                 let success_blocks : Vec<_> = chunk.into_iter().filter_map(|b| {
                     match b.r {
                         Ok(data) => Some(data),
-                        Err(_) => {
-                            // TODO handle failure
+                        Err(e) => {
+                            log::error!("{e}");
+                            // TODO add to self.blocks_to_retry to retry later
                             None
                         }
                     }

@@ -142,7 +142,7 @@ impl PenumbraIndexer {
         Box::pin(stream)
     }
 
-    pub async fn update_task(&self) -> IndexerResult<()> {
+    pub async fn update(&self) -> IndexerResult<()> {
         let mut current_block = self.current_block.lock().await;
         let current_height = self.pen.get_penumbra_latest_block_height().await?.expect("can't get block height") as usize;
         if current_height > *current_block {
@@ -173,12 +173,18 @@ impl PenumbraIndexer {
 
     pub async fn auto_sync(&self) {
         loop {
-            let r = self.update_task().await;
+            let t = std::time::Instant::now();
+            let rate_millis = 5000; // update every 5 sec
+            let r = self.update().await;
+            // TODO try to fetch blocks in blocks_to_retry
             match r {
                 Ok(_) => {},
                 Err(e) => log::error!("{}", e)
             }
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await; // update every 5 sec
+            let sleep_time = rate_millis - t.elapsed().as_millis() as isize;
+            if sleep_time > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(sleep_time as u64)).await;
+            }
         }
     }
 }
